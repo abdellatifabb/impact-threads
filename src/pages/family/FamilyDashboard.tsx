@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Send, Plus, Image as ImageIcon, X, LogOut, Heart } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, X, LogOut, Heart, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Family {
@@ -258,17 +258,19 @@ export default function FamilyDashboard() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const mediaFiles = files.filter(file => 
+      file.type.startsWith('image/') || file.type.startsWith('video/')
+    );
     
-    if (imageFiles.length !== files.length) {
+    if (mediaFiles.length !== files.length) {
       toast({
         title: "Warning",
-        description: "Only image files are supported",
+        description: "Only image and video files are supported",
         variant: "destructive",
       });
     }
     
-    setSelectedFiles(prev => [...prev, ...imageFiles].slice(0, 5)); // Max 5 images
+    setSelectedFiles(prev => [...prev, ...mediaFiles].slice(0, 5)); // Max 5 files
   };
 
   const removeFile = (index: number) => {
@@ -302,11 +304,11 @@ export default function FamilyDashboard() {
 
       if (postError) throw postError;
 
-      // Upload images if any
+      // Upload media files if any
       if (selectedFiles.length > 0 && postData) {
         const uploadPromises = selectedFiles.map(async (file) => {
           const fileExt = file.name.split('.').pop();
-          const fileName = `${postData.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const fileName = `${family.id}/${postData.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
           
           // Upload to storage
           const { data: uploadData, error: uploadError } = await supabase.storage
@@ -320,13 +322,16 @@ export default function FamilyDashboard() {
             .from('family-posts')
             .getPublicUrl(fileName);
 
+          // Determine media type
+          const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+
           // Insert into post_media
           const { error: mediaError } = await supabase
             .from('post_media')
             .insert({
               post_id: postData.id,
               file_url: publicUrl,
-              media_type: 'image',
+              media_type: mediaType,
             });
 
           if (mediaError) throw mediaError;
@@ -338,11 +343,20 @@ export default function FamilyDashboard() {
       setNewPostTitle("");
       setNewPostBody("");
       setSelectedFiles([]);
+      const videoCount = selectedFiles.filter(f => f.type.startsWith('video/')).length;
+      const imageCount = selectedFiles.filter(f => f.type.startsWith('image/')).length;
+      
+      let mediaDescription = "Update posted successfully";
+      if (selectedFiles.length > 0) {
+        const parts = [];
+        if (imageCount > 0) parts.push(`${imageCount} photo${imageCount > 1 ? 's' : ''}`);
+        if (videoCount > 0) parts.push(`${videoCount} video${videoCount > 1 ? 's' : ''}`);
+        mediaDescription = `Update posted successfully with ${parts.join(' and ')}`;
+      }
+      
       toast({
         title: "Success",
-        description: selectedFiles.length > 0 
-          ? `Update posted successfully with ${selectedFiles.length} photo(s)`
-          : "Update posted successfully",
+        description: mediaDescription,
       });
     } catch (error) {
       console.error('Error creating post:', error);
@@ -528,12 +542,12 @@ export default function FamilyDashboard() {
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-2 block">Photos (Optional)</label>
+                <label className="text-sm font-medium mb-2 block">Photos & Videos (Optional)</label>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       multiple
                       onChange={handleFileSelect}
                       className="hidden"
@@ -547,7 +561,8 @@ export default function FamilyDashboard() {
                       disabled={selectedFiles.length >= 5}
                     >
                       <ImageIcon className="h-4 w-4 mr-2" />
-                      Add Photos ({selectedFiles.length}/5)
+                      <Video className="h-4 w-4 mr-2" />
+                      Add Media ({selectedFiles.length}/5)
                     </Button>
                   </div>
                   
@@ -555,11 +570,20 @@ export default function FamilyDashboard() {
                     <div className="grid grid-cols-3 gap-2 mt-2">
                       {selectedFiles.map((file, index) => (
                         <div key={index} className="relative group">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-24 object-cover rounded-lg"
-                          />
+                          {file.type.startsWith('video/') ? (
+                            <div className="relative w-full h-24 bg-muted rounded-lg flex items-center justify-center">
+                              <Video className="h-8 w-8 text-muted-foreground" />
+                              <span className="absolute bottom-1 left-1 text-xs bg-background/80 px-1 rounded">
+                                Video
+                              </span>
+                            </div>
+                          ) : (
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg"
+                            />
+                          )}
                           <button
                             type="button"
                             onClick={() => removeFile(index)}
