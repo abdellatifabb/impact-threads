@@ -64,35 +64,35 @@ const AdminDonors = () => {
     e.preventDefault();
     
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { name, role: 'donor' }
+      // Call edge function to create user and send invitation
+      const { data, error } = await supabase.functions.invoke('create-user-with-invitation', {
+        body: {
+          email,
+          name,
+          role: 'donor',
+          roleData: {
+            preferred_name: preferredName || null,
+            bio: bio || null
+          }
         }
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("User creation failed");
+      if (error) throw error;
+      if (!data?.success) throw new Error("User creation failed");
 
-      // Create donor profile
-      const { error: profileError } = await supabase
-        .from('donor_profiles')
-        .insert({
-          user_id: authData.user.id,
-          preferred_name: preferredName || null,
-          bio: bio || null
-        });
-
-      if (profileError) throw profileError;
-
-      toast({ title: "Success", description: "Donor created successfully" });
+      toast({ 
+        title: "Success", 
+        description: "Donor created and invitation email sent successfully" 
+      });
       setIsCreateOpen(false);
       resetForm();
       loadDonors();
     } catch (error: any) {
-      toast({ title: "Error creating donor", description: error.message, variant: "destructive" });
+      toast({ 
+        title: "Error creating donor", 
+        description: error.message, 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -219,17 +219,6 @@ const AdminDonors = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="password">Password *</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="name">Full Name *</Label>
                     <Input
                       id="name"
@@ -237,6 +226,9 @@ const AdminDonors = () => {
                       onChange={(e) => setName(e.target.value)}
                       required
                     />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      An invitation email will be sent to set up their password
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="preferredName">Preferred Name</Label>
