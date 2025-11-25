@@ -64,36 +64,36 @@ const AdminCaseManagers = () => {
     e.preventDefault();
     
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { name, role: 'case_manager' }
+      // Call edge function to create user and send invitation
+      const { data, error } = await supabase.functions.invoke('create-user-with-invitation', {
+        body: {
+          email,
+          name,
+          role: 'case_manager',
+          roleData: {
+            title: title || null,
+            region: region || null,
+            phone: phone || null
+          }
         }
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("User creation failed");
+      if (error) throw error;
+      if (!data?.success) throw new Error("User creation failed");
 
-      // Create case manager profile
-      const { error: profileError } = await supabase
-        .from('case_manager_profiles')
-        .insert({
-          user_id: authData.user.id,
-          title: title || null,
-          region: region || null,
-          phone: phone || null
-        });
-
-      if (profileError) throw profileError;
-
-      toast({ title: "Success", description: "Case manager created successfully" });
+      toast({ 
+        title: "Success", 
+        description: "Case manager created and invitation email sent successfully" 
+      });
       setIsCreateOpen(false);
       resetForm();
       loadCaseManagers();
     } catch (error: any) {
-      toast({ title: "Error creating case manager", description: error.message, variant: "destructive" });
+      toast({ 
+        title: "Error creating case manager", 
+        description: error.message, 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -223,17 +223,6 @@ const AdminCaseManagers = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="password">Password *</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="name">Full Name *</Label>
                     <Input
                       id="name"
@@ -241,6 +230,9 @@ const AdminCaseManagers = () => {
                       onChange={(e) => setName(e.target.value)}
                       required
                     />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      An invitation email will be sent to set up their password
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="title">Title</Label>
