@@ -10,6 +10,10 @@ import Signup from "./pages/auth/Signup";
 import DonorDashboard from "./pages/donor/DonorDashboard";
 import FamilyDetail from "./pages/donor/FamilyDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminDonors from "./pages/admin/AdminDonors";
+import AdminFamilies from "./pages/admin/AdminFamilies";
+import AdminCaseManagers from "./pages/admin/AdminCaseManagers";
+import AdminAssignments from "./pages/admin/AdminAssignments";
 import CaseManagerDashboard from "./pages/case-manager/CaseManagerDashboard";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
@@ -50,7 +54,13 @@ const App = () => (
             path="/admin/*"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
-                <AdminDashboard />
+                <Routes>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="donors" element={<AdminDonors />} />
+                  <Route path="families" element={<AdminFamilies />} />
+                  <Route path="case-managers" element={<AdminCaseManagers />} />
+                  <Route path="assignments" element={<AdminAssignments />} />
+                </Routes>
               </ProtectedRoute>
             }
           />
