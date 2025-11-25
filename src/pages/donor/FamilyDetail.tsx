@@ -40,7 +40,7 @@ interface Post {
   created_by_user_id: string;
   profiles: {
     name: string;
-  };
+  } | null;
   post_media: {
     file_url: string;
     caption: string | null;
@@ -55,7 +55,7 @@ interface Message {
   profiles: {
     name: string;
     role: string;
-  };
+  } | null;
 }
 
 const FamilyDetail = () => {
@@ -471,7 +471,7 @@ const FamilyDetail = () => {
                         <CardTitle className="font-serif text-xl mb-2">{post.title}</CardTitle>
                       )}
                       <CardDescription>
-                        Posted by {post.profiles.name} •{" "}
+                        Posted by {post.profiles?.name || 'Unknown'} •{" "}
                         {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                       </CardDescription>
                     </CardHeader>
@@ -518,7 +518,7 @@ const FamilyDetail = () => {
                     </p>
                   ) : (
                     messages.map((message) => {
-                      const isFromDonor = message.profiles.role === 'donor';
+                      const isFromDonor = message.profiles?.role === 'donor';
                       return (
                         <div
                           key={message.id}
@@ -531,7 +531,7 @@ const FamilyDetail = () => {
                                 : 'bg-card border border-border'
                             }`}
                           >
-                            <p className="text-sm font-medium mb-1">{message.profiles.name}</p>
+                            <p className="text-sm font-medium mb-1">{message.profiles?.name || 'Unknown'}</p>
                             <p className="whitespace-pre-wrap">{message.body}</p>
                             <p className="text-xs opacity-70 mt-1">
                               {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
