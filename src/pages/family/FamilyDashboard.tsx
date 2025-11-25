@@ -366,14 +366,23 @@ export default function FamilyDashboard() {
 
   if (!family) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card>
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>No Family Profile</CardTitle>
+            <CardTitle>No Family Profile Found</CardTitle>
             <CardDescription>
-              You don't have a family profile associated with your account.
+              Your account doesn't have a family profile associated with it. Please contact an administrator to set up your family profile.
             </CardDescription>
           </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              If you believe this is an error, please reach out to support for assistance.
+            </p>
+            <Button onClick={handleLogout} variant="outline" className="w-full">
+              <LogOut className="h-4 w-4 mr-2" />
+              Log Out
+            </Button>
+          </CardContent>
         </Card>
       </div>
     );
