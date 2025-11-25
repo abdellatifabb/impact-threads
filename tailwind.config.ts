@@ -17,11 +17,17 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        background: {
+          DEFAULT: "hsl(var(--background))",
+          "gradient-start": "hsl(var(--background-gradient-start))",
+          "gradient-mid": "hsl(var(--background-gradient-mid))",
+          "gradient-end": "hsl(var(--background-gradient-end))",
+        },
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -57,6 +63,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      fontFamily: {
+        serif: ['Crimson Pro', 'Georgia', 'serif'],
+        sans: ['Work Sans', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        'soft': 'var(--shadow-soft)',
+        'warm': 'var(--shadow-warm)',
       },
       borderRadius: {
         lg: "var(--radius)",
