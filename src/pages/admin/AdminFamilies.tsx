@@ -19,7 +19,12 @@ interface Family {
   location_country: string | null;
   story: string | null;
   status: string;
+  family_user_id: string | null;
   children: { count: number }[];
+  family_user?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface Child {
@@ -50,6 +55,8 @@ const AdminFamilies = () => {
   const [country, setCountry] = useState("");
   const [story, setStory] = useState("");
   const [status, setStatus] = useState<"active" | "inactive" | "graduated">("active");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // Child form states
   const [childName, setChildName] = useState("");
@@ -68,7 +75,8 @@ const AdminFamilies = () => {
       .from('families')
       .select(`
         *,
-        children(count)
+        children(count),
+        family_user:profiles!families_family_user_id_fkey(id, name)
       `)
       .order('created_at', { ascending: false });
 
@@ -98,6 +106,38 @@ const AdminFamilies = () => {
     e.preventDefault();
     
     try {
+      // Store admin session
+      const { data: { session: adminSession } } = await supabase.auth.getSession();
+      
+      let familyUserId = null;
+      
+      // Create user account if email and password provided
+      if (email && password) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              role: 'family',
+              name: name
+            },
+            emailRedirectTo: `${window.location.origin}/family`
+          }
+        });
+
+        if (signUpError) throw signUpError;
+        familyUserId = signUpData.user?.id;
+
+        // Restore admin session
+        if (adminSession) {
+          await supabase.auth.setSession({
+            access_token: adminSession.access_token,
+            refresh_token: adminSession.refresh_token
+          });
+        }
+      }
+
+      // Create family record
       const { error } = await supabase
         .from('families')
         .insert({
@@ -105,12 +145,18 @@ const AdminFamilies = () => {
           location_city: city || null,
           location_country: country || null,
           story: story || null,
-          status
+          status,
+          family_user_id: familyUserId
         });
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Family created successfully" });
+      toast({ 
+        title: "Success", 
+        description: familyUserId 
+          ? "Family created with login credentials" 
+          : "Family created without login credentials" 
+      });
       setIsCreateOpen(false);
       resetFamilyForm();
       loadFamilies();
@@ -254,6 +300,8 @@ const AdminFamilies = () => {
     setCountry("");
     setStory("");
     setStatus("active");
+    setEmail("");
+    setPassword("");
   };
 
   const resetChildForm = () => {
@@ -358,6 +406,33 @@ const AdminFamilies = () => {
                       rows={4}
                     />
                   </div>
+                  <div className="border-t pt-4 space-y-4">
+                    <h3 className="font-medium">Login Credentials (Optional)</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Provide email and password to create a login account for this family.
+                    </p>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="family@example.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Minimum 6 characters"
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
                   <Button type="submit" className="w-full">Create Family</Button>
                 </form>
               </DialogContent>
@@ -374,6 +449,7 @@ const AdminFamilies = () => {
                     <TableHead>Location</TableHead>
                     <TableHead>Children</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Login</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -393,6 +469,17 @@ const AdminFamilies = () => {
                         }`}>
                           {family.status}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {family.family_user ? (
+                          <span className="text-sm text-muted-foreground">
+                            ✓ Enabled
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No login
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
@@ -421,7 +508,7 @@ const AdminFamilies = () => {
                   ))}
                   {families.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         No families yet. Create your first family to get started.
                       </TableCell>
                     </TableRow>
