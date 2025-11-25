@@ -21,6 +21,9 @@ interface Family {
 interface Message {
   id: string;
   body: string;
+  body_en: string | null;
+  body_ar: string | null;
+  original_language: string | null;
   created_at: string;
   sender_user_id: string;
   profiles: {
@@ -191,6 +194,11 @@ export default function FamilyDashboard() {
     }
   }
 
+  // Helper to get the appropriate message text for family (Arabic)
+  const getMessageText = (msg: Message) => {
+    return msg.body_ar || msg.body;
+  };
+
   async function sendMessage() {
     if (!newMessage.trim() || !selectedThread) return;
 
@@ -199,12 +207,34 @@ export default function FamilyDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const arabicText = newMessage.trim();
+
+      // Translate Arabic to English
+      toast({
+        title: "Translating...",
+        description: "Preparing your message",
+      });
+
+      const { data: translationData, error: translationError } = await supabase.functions.invoke('translate-message', {
+        body: { text: arabicText, targetLanguage: 'en' }
+      });
+
+      if (translationError) {
+        console.error('Translation error:', translationError);
+        throw new Error('Failed to translate message');
+      }
+
+      const englishText = translationData.translatedText;
+
       const { error } = await supabase
         .from('messages')
         .insert({
           thread_id: selectedThread,
           sender_user_id: user.id,
-          body: newMessage.trim(),
+          body: arabicText,
+          body_ar: arabicText,
+          body_en: englishText,
+          original_language: 'ar',
         });
 
       if (error) throw error;
@@ -212,7 +242,7 @@ export default function FamilyDashboard() {
       setNewMessage("");
       toast({
         title: "Success",
-        description: "Message sent",
+        description: "Message sent and translated",
       });
     } catch (error) {
       console.error('Error sending message:', error);
@@ -427,7 +457,9 @@ export default function FamilyDashboard() {
                                   {new Date(msg.created_at).toLocaleString()}
                                 </span>
                               </div>
-                              <p className="text-sm">{msg.body}</p>
+                              <p className="text-sm" dir={msg.original_language === 'ar' ? 'rtl' : 'ltr'}>
+                                {getMessageText(msg)}
+                              </p>
                             </div>
                           ))}
                         </div>
