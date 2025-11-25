@@ -43,34 +43,42 @@ const DonorDashboard = () => {
       setUserName(profile?.name || 'Donor');
 
       // Get donor profile
-      const { data: donorProfile } = await supabase
+      const { data: donorProfile, error: donorError } = await supabase
         .from('donor_profiles')
         .select('id, preferred_name')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (donorProfile) {
-        setUserName(donorProfile.preferred_name || profile?.name || 'Donor');
+      if (!donorProfile) {
+        toast({
+          title: "No Donor Profile",
+          description: "Your account doesn't have a donor profile. Please contact an administrator.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
-        // Get assigned families
-        const { data: assignments } = await supabase
-          .from('donor_family_assignments')
-          .select(`
-            family_id,
-            families (
-              id,
-              name,
-              location_city,
-              location_country,
-              banner_image_url
-            )
-          `)
-          .eq('donor_id', donorProfile.id)
-          .eq('status', 'active');
+      setUserName(donorProfile.preferred_name || profile?.name || 'Donor');
 
-        if (assignments) {
-          setFamilies(assignments.map((a: any) => a.families).filter(Boolean));
-        }
+      // Get assigned families
+      const { data: assignments } = await supabase
+        .from('donor_family_assignments')
+        .select(`
+          family_id,
+          families (
+            id,
+            name,
+            location_city,
+            location_country,
+            banner_image_url
+          )
+        `)
+        .eq('donor_id', donorProfile.id)
+        .eq('status', 'active');
+
+      if (assignments) {
+        setFamilies(assignments.map((a: any) => a.families).filter(Boolean));
       }
     } catch (error: any) {
       toast({
