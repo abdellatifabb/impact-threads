@@ -79,6 +79,43 @@ const FamilyDetail = () => {
     loadFamilyData();
   }, [familyId]);
 
+  useEffect(() => {
+    if (threadId) {
+      // Subscribe to new messages in real-time
+      const channel = supabase
+        .channel(`messages-${threadId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `thread_id=eq.${threadId}`
+          },
+          async (payload) => {
+            // Fetch the complete message with profile data
+            const { data: newMessage } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                profiles!messages_sender_user_id_fkey(name, role)
+              `)
+              .eq('id', payload.new.id)
+              .single();
+
+            if (newMessage) {
+              setMessages(prev => [...prev, newMessage as Message]);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [threadId]);
+
   const loadFamilyData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -202,7 +239,7 @@ const FamilyDetail = () => {
 
       if (error) throw error;
 
-      setMessages([...messages, newMessage]);
+      // No need to manually add message - real-time subscription will handle it
       setMessageText("");
       
       toast({
