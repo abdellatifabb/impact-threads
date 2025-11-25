@@ -71,12 +71,14 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const translatedText = data.choices[0]?.message?.content?.trim();
+    console.log('OpenAI response:', JSON.stringify(data, null, 2));
+    
+    const translatedText = data.choices?.[0]?.message?.content?.trim();
 
     if (!translatedText) {
-      console.error('No translation returned from OpenAI');
+      console.error('No translation in response. Full response:', JSON.stringify(data, null, 2));
       return new Response(
-        JSON.stringify({ error: 'No translation received' }),
+        JSON.stringify({ error: 'No translation received', rawResponse: data }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
