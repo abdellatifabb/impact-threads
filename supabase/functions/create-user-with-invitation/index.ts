@@ -1,13 +1,23 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const smtpClient = new SMTPClient({
+  connection: {
+    hostname: Deno.env.get("EMAIL_HOST") ?? "",
+    port: Number(Deno.env.get("EMAIL_PORT")) ?? 465,
+    tls: true,
+    auth: {
+      username: Deno.env.get("EMAIL_USER") ?? "",
+      password: Deno.env.get("EMAIL_PASS") ?? "",
+    },
+  },
+});
 
 interface CreateUserRequest {
   email: string;
@@ -134,10 +144,11 @@ serve(async (req) => {
     const roleName = role === 'donor' ? 'Donor' : 'Case Manager';
     const inviteLink = resetData?.properties?.action_link || `${Deno.env.get("SUPABASE_URL")}/auth/v1/verify`;
 
-    await resend.emails.send({
-      from: "Family Support Platform <onboarding@resend.dev>",
-      to: [email],
+    await smtpClient.send({
+      from: Deno.env.get("EMAIL_SENDER") ?? "",
+      to: email,
       subject: `Welcome to the Family Support Platform - ${roleName} Invitation`,
+      content: "auto",
       html: `
         <h1>Welcome ${name}!</h1>
         <p>You have been invited to join the Family Support Platform as a ${roleName}.</p>
@@ -148,6 +159,8 @@ serve(async (req) => {
         <p>Best regards,<br>The Family Support Team</p>
       `,
     });
+
+    await smtpClient.close();
 
     return new Response(
       JSON.stringify({ success: true, user: userData.user }),
