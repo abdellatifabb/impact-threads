@@ -15,6 +15,7 @@ import AdminFamilies from "./pages/admin/AdminFamilies";
 import AdminCaseManagers from "./pages/admin/AdminCaseManagers";
 import AdminAssignments from "./pages/admin/AdminAssignments";
 import CaseManagerDashboard from "./pages/case-manager/CaseManagerDashboard";
+import FamilyDashboard from "./pages/family/FamilyDashboard";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 
@@ -71,6 +72,16 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['case_manager']}>
                 <CaseManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Family Routes */}
+          <Route
+            path="/family"
+            element={
+              <ProtectedRoute allowedRoles={['family']}>
+                <FamilyDashboard />
               </ProtectedRoute>
             }
           />
