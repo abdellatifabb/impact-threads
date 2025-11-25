@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Send, Plus } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, X } from "lucide-react";
 
 interface Family {
   id: string;
@@ -46,6 +46,7 @@ export default function FamilyDashboard() {
   const [newMessage, setNewMessage] = useState("");
   const [newPostTitle, setNewPostTitle] = useState("");
   const [newPostBody, setNewPostBody] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
@@ -170,6 +171,25 @@ export default function FamilyDashboard() {
     }
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length !== files.length) {
+      toast({
+        title: "Warning",
+        description: "Only image files are supported",
+        variant: "destructive",
+      });
+    }
+    
+    setSelectedFiles(prev => [...prev, ...imageFiles].slice(0, 5)); // Max 5 images
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   async function createPost() {
     if (!newPostBody.trim() || !family) return;
 
@@ -178,22 +198,61 @@ export default function FamilyDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { error } = await supabase
+      // Create the post first
+      const { data: postData, error: postError } = await supabase
         .from('posts')
         .insert({
           family_id: family.id,
           created_by_user_id: user.id,
           title: newPostTitle.trim() || null,
           body: newPostBody.trim(),
+        })
+        .select()
+        .single();
+
+      if (postError) throw postError;
+
+      // Upload images if any
+      if (selectedFiles.length > 0 && postData) {
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${postData.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          
+          // Upload to storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('family-posts')
+            .upload(fileName, file);
+
+          if (uploadError) throw uploadError;
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('family-posts')
+            .getPublicUrl(fileName);
+
+          // Insert into post_media
+          const { error: mediaError } = await supabase
+            .from('post_media')
+            .insert({
+              post_id: postData.id,
+              file_url: publicUrl,
+              media_type: 'image',
+            });
+
+          if (mediaError) throw mediaError;
         });
 
-      if (error) throw error;
+        await Promise.all(uploadPromises);
+      }
 
       setNewPostTitle("");
       setNewPostBody("");
+      setSelectedFiles([]);
       toast({
         title: "Success",
-        description: "Update posted successfully",
+        description: selectedFiles.length > 0 
+          ? `Update posted successfully with ${selectedFiles.length} photo(s)`
+          : "Update posted successfully",
       });
     } catch (error) {
       console.error('Error creating post:', error);
@@ -355,6 +414,54 @@ export default function FamilyDashboard() {
                   className="min-h-[200px]"
                 />
               </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Photos (Optional)</label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="file-upload"
+                      disabled={selectedFiles.length >= 5}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('file-upload')?.click()}
+                      disabled={selectedFiles.length >= 5}
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Add Photos ({selectedFiles.length}/5)
+                    </Button>
+                  </div>
+                  
+                  {selectedFiles.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {selectedFiles.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <Button
                 onClick={createPost}
                 disabled={sending || !newPostBody.trim()}
