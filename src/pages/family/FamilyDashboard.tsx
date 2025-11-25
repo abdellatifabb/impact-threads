@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Send, Plus, Image as ImageIcon, X, LogOut, Heart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface Family {
   id: string;
@@ -31,6 +32,7 @@ interface MessageThread {
   id: string;
   family_id: string;
   donor_id: string;
+  unread_count?: number;
   donor_profiles: {
     user_id: string;
     profiles: {
@@ -85,6 +87,14 @@ export default function FamilyDashboard() {
 
             if (newMessage) {
               setMessages(prev => [...prev, newMessage as Message]);
+              
+              // Increment unread count if message is from someone else
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user && newMessage.sender_user_id !== user.id) {
+                setThreads(prev => prev.map(t => 
+                  t.id === selectedThread ? { ...t, unread_count: (t.unread_count || 0) + 1 } : t
+                ));
+              }
             }
           }
         )
@@ -123,7 +133,22 @@ export default function FamilyDashboard() {
           `)
           .eq('family_id', familyData.id);
 
-        setThreads(threadsData || []);
+        // Get unread counts for each thread
+        if (threadsData) {
+          const threadsWithUnread = await Promise.all(
+            threadsData.map(async (thread) => {
+              const { count } = await supabase
+                .from('messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('thread_id', thread.id)
+                .neq('sender_user_id', user.id)
+                .is('read_at', null);
+
+              return { ...thread, unread_count: count || 0 };
+            })
+          );
+          setThreads(threadsWithUnread);
+        }
       }
     } catch (error) {
       console.error('Error loading family data:', error);
@@ -148,6 +173,22 @@ export default function FamilyDashboard() {
       .order('created_at', { ascending: true });
 
     setMessages(data || []);
+
+    // Mark messages as read
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('thread_id', threadId)
+        .neq('sender_user_id', user.id)
+        .is('read_at', null);
+
+      // Update unread count for this thread
+      setThreads(prev => prev.map(t => 
+        t.id === threadId ? { ...t, unread_count: 0 } : t
+      ));
+    }
   }
 
   async function sendMessage() {
@@ -356,10 +397,15 @@ export default function FamilyDashboard() {
                       <Button
                         key={thread.id}
                         variant={selectedThread === thread.id ? "default" : "outline"}
-                        className="w-full justify-start"
+                        className="w-full justify-between"
                         onClick={() => setSelectedThread(thread.id)}
                       >
-                        {thread.donor_profiles?.profiles?.name || 'Unknown Donor'}
+                        <span>{thread.donor_profiles?.profiles?.name || 'Unknown Donor'}</span>
+                        {thread.unread_count! > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            {thread.unread_count}
+                          </Badge>
+                        )}
                       </Button>
                     ))}
                   </div>
