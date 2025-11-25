@@ -319,24 +319,33 @@ export type Database = {
       messages: {
         Row: {
           body: string
+          body_ar: string | null
+          body_en: string | null
           created_at: string
           id: string
+          original_language: string | null
           read_at: string | null
           sender_user_id: string
           thread_id: string
         }
         Insert: {
           body: string
+          body_ar?: string | null
+          body_en?: string | null
           created_at?: string
           id?: string
+          original_language?: string | null
           read_at?: string | null
           sender_user_id: string
           thread_id: string
         }
         Update: {
           body?: string
+          body_ar?: string | null
+          body_en?: string | null
           created_at?: string
           id?: string
+          original_language?: string | null
           read_at?: string | null
           sender_user_id?: string
           thread_id?: string

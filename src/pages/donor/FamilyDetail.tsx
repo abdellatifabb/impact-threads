@@ -50,6 +50,9 @@ interface Post {
 interface Message {
   id: string;
   body: string;
+  body_en: string | null;
+  body_ar: string | null;
+  original_language: string | null;
   created_at: string;
   sender_user_id: string;
   profiles: {
@@ -224,18 +227,35 @@ const FamilyDetail = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data: newMessage, error } = await supabase
+      const englishText = messageText.trim();
+
+      // Translate English to Arabic
+      toast({
+        title: "Translating...",
+        description: "Preparing your message",
+      });
+
+      const { data: translationData, error: translationError } = await supabase.functions.invoke('translate-message', {
+        body: { text: englishText, targetLanguage: 'ar' }
+      });
+
+      if (translationError) {
+        console.error('Translation error:', translationError);
+        throw new Error('Failed to translate message');
+      }
+
+      const arabicText = translationData.translatedText;
+
+      const { error } = await supabase
         .from('messages')
         .insert({
           thread_id: threadId,
           sender_user_id: user.id,
-          body: messageText.trim(),
-        })
-        .select(`
-          *,
-          profiles!messages_sender_user_id_fkey(name, role)
-        `)
-        .single();
+          body: englishText,
+          body_en: englishText,
+          body_ar: arabicText,
+          original_language: 'en',
+        });
 
       if (error) throw error;
 
@@ -244,7 +264,7 @@ const FamilyDetail = () => {
       
       toast({
         title: "Message sent",
-        description: "Your message has been sent to the case manager.",
+        description: "Your message has been sent and translated.",
       });
     } catch (error: any) {
       toast({
@@ -255,6 +275,11 @@ const FamilyDetail = () => {
     } finally {
       setSendingMessage(false);
     }
+  };
+
+  // Helper to get the appropriate message text for donor (English)
+  const getMessageText = (msg: Message) => {
+    return msg.body_en || msg.body;
   };
 
   const handleRequestUpdate = async () => {
@@ -569,7 +594,7 @@ const FamilyDetail = () => {
                             }`}
                           >
                             <p className="text-sm font-medium mb-1">{message.profiles?.name || 'Unknown'}</p>
-                            <p className="whitespace-pre-wrap">{message.body}</p>
+                            <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
                             <p className="text-xs opacity-70 mt-1">
                               {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                             </p>
