@@ -73,24 +73,7 @@ serve(async (req) => {
       );
     }
 
-    // Create profile
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .insert({
-        id: userData.user.id,
-        name,
-        role,
-      });
-
-    if (profileError) {
-      console.error("Error creating profile:", profileError);
-      // Rollback user creation
-      await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-      return new Response(
-        JSON.stringify({ error: "Failed to create profile" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Note: Profile is automatically created by the handle_new_user() trigger
 
     // Create role-specific profile
     if (role === "donor") {
