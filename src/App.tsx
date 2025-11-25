@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import ResetPassword from "./pages/auth/ResetPassword";
 import DonorDashboard from "./pages/donor/DonorDashboard";
 import FamilyDetail from "./pages/donor/FamilyDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -29,6 +30,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/auth/signup" element={<Signup />} />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
           
           {/* Donor Routes */}
           <Route
