@@ -51,72 +51,102 @@ serve(async (req) => {
 
     const { email, name, role, roleData }: CreateUserRequest = await req.json();
 
-    // Generate a random password for the user
-    const tempPassword = crypto.randomUUID();
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users.find(u => u.email === email);
 
-    // Create user using Admin API
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: false, // Require email confirmation
-      user_metadata: {
-        name,
-        role,
-      },
-    });
+    let userId: string;
 
-    if (userError) {
-      console.error("Error creating user:", userError);
-      return new Response(
-        JSON.stringify({ error: userError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (existingUser) {
+      console.log(`User ${email} already exists, sending new invitation`);
+      userId = existingUser.id;
+      
+      // Update user metadata
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          name,
+          role,
+        },
+      });
+    } else {
+      // Generate a random password for the user
+      const tempPassword = crypto.randomUUID();
+
+      // Create user using Admin API
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: false, // Require email confirmation
+        user_metadata: {
+          name,
+          role,
+        },
+      });
+
+      if (userError) {
+        console.error("Error creating user:", userError);
+        return new Response(
+          JSON.stringify({ error: userError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      userId = userData.user.id;
     }
 
     // Note: Profile is automatically created by the handle_new_user() trigger
 
-    // Create role-specific profile
-    if (role === "donor") {
-      const { error: donorError } = await supabaseAdmin
-        .from("donor_profiles")
-        .insert({
-          user_id: userData.user.id,
-          preferred_name: roleData?.preferred_name || null,
-          bio: roleData?.bio || null,
-        });
+    // Create or update role-specific profile only if user was just created
+    if (!existingUser) {
+      if (role === "donor") {
+        const { error: donorError } = await supabaseAdmin
+          .from("donor_profiles")
+          .insert({
+            user_id: userId,
+            preferred_name: roleData?.preferred_name || null,
+            bio: roleData?.bio || null,
+          });
 
-      if (donorError) {
-        console.error("Error creating donor profile:", donorError);
-        await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-        return new Response(
-          JSON.stringify({ error: "Failed to create donor profile" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else if (role === "case_manager") {
-      const { error: cmError } = await supabaseAdmin
-        .from("case_manager_profiles")
-        .insert({
-          user_id: userData.user.id,
-          title: roleData?.title || null,
-          region: roleData?.region || null,
-          phone: roleData?.phone || null,
-        });
+        if (donorError) {
+          console.error("Error creating donor profile:", donorError);
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+          return new Response(
+            JSON.stringify({ error: "Failed to create donor profile" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else if (role === "case_manager") {
+        const { error: cmError } = await supabaseAdmin
+          .from("case_manager_profiles")
+          .insert({
+            user_id: userId,
+            title: roleData?.title || null,
+            region: roleData?.region || null,
+            phone: roleData?.phone || null,
+          });
 
-      if (cmError) {
-        console.error("Error creating case manager profile:", cmError);
-        await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
-        return new Response(
-          JSON.stringify({ error: "Failed to create case manager profile" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        if (cmError) {
+          console.error("Error creating case manager profile:", cmError);
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+          return new Response(
+            JSON.stringify({ error: "Failed to create case manager profile" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     }
 
     // Generate password reset link (invitation link)
+    // Get the app URL from environment or construct from SUPABASE_URL
+    const appUrl = Deno.env.get("APP_URL") || "https://impact-threads.lovable.app";
+    const redirectTo = `${appUrl}/auth/reset-password`;
+    
     const { data: resetData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: email,
+      options: {
+        redirectTo: redirectTo,
+      },
     });
 
     if (resetError) {
@@ -146,7 +176,7 @@ serve(async (req) => {
     await smtpClient.close();
 
     return new Response(
-      JSON.stringify({ success: true, user: userData.user }),
+      JSON.stringify({ success: true, userId: userId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
