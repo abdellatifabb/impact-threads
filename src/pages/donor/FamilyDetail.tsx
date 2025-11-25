@@ -44,6 +44,7 @@ interface Post {
   post_media: {
     file_url: string;
     caption: string | null;
+    media_type: string;
   }[];
 }
 
@@ -152,7 +153,7 @@ const FamilyDetail = () => {
         .select(`
           *,
           profiles!posts_created_by_user_id_fkey(name),
-          post_media(file_url, caption)
+          post_media(file_url, caption, media_type)
         `)
         .eq('family_id', familyId)
         .eq('visibility', 'visible')
@@ -544,11 +545,22 @@ const FamilyDetail = () => {
                         <div className="grid grid-cols-2 gap-4">
                           {post.post_media.map((media, index) => (
                             <div key={index} className="space-y-2">
-                              <img
-                                src={media.file_url}
-                                alt={media.caption || "Update photo"}
-                                className="w-full rounded-lg object-cover aspect-video"
-                              />
+                              {media.media_type === 'video' ? (
+                                <video
+                                  src={media.file_url}
+                                  controls
+                                  className="w-full rounded-lg aspect-video"
+                                  preload="metadata"
+                                >
+                                  Your browser does not support the video tag.
+                                </video>
+                              ) : (
+                                <img
+                                  src={media.file_url}
+                                  alt={media.caption || "Update photo"}
+                                  className="w-full rounded-lg object-cover aspect-video"
+                                />
+                              )}
                               {media.caption && (
                                 <p className="text-sm text-muted-foreground">{media.caption}</p>
                               )}
