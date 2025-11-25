@@ -24,7 +24,7 @@ interface Message {
   sender_user_id: string;
   profiles: {
     name: string;
-  };
+  } | null;
 }
 
 interface MessageThread {
@@ -35,8 +35,8 @@ interface MessageThread {
     user_id: string;
     profiles: {
       name: string;
-    };
-  };
+    } | null;
+  } | null;
 }
 
 export default function FamilyDashboard() {
@@ -347,7 +347,7 @@ export default function FamilyDashboard() {
                         className="w-full justify-start"
                         onClick={() => setSelectedThread(thread.id)}
                       >
-                        {thread.donor_profiles.profiles.name}
+                        {thread.donor_profiles?.profiles?.name || 'Unknown Donor'}
                       </Button>
                     ))}
                   </div>
@@ -363,7 +363,7 @@ export default function FamilyDashboard() {
                             >
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">
-                                  {msg.profiles.name}
+                                  {msg.profiles?.name || 'Unknown'}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                   {new Date(msg.created_at).toLocaleString()}
