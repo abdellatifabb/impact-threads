@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import DonorDashboard from "./pages/donor/DonorDashboard";
+import FamilyDetail from "./pages/donor/FamilyDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CaseManagerDashboard from "./pages/case-manager/CaseManagerDashboard";
 import Unauthorized from "./pages/Unauthorized";
@@ -32,6 +33,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['donor']}>
                 <DonorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/donor/family/:familyId"
+            element={
+              <ProtectedRoute allowedRoles={['donor']}>
+                <FamilyDetail />
               </ProtectedRoute>
             }
           />
