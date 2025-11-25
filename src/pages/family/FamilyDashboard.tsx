@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Send, Plus, Image as ImageIcon, X } from "lucide-react";
+import { Loader2, Send, Plus, Image as ImageIcon, X, LogOut, Heart } from "lucide-react";
 
 interface Family {
   id: string;
@@ -39,6 +40,7 @@ interface MessageThread {
 }
 
 export default function FamilyDashboard() {
+  const navigate = useNavigate();
   const [family, setFamily] = useState<Family | null>(null);
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
@@ -190,6 +192,11 @@ export default function FamilyDashboard() {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth/login');
+  };
+
   async function createPost() {
     if (!newPostBody.trim() || !family) return;
 
@@ -290,13 +297,28 @@ export default function FamilyDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">{family.name}</h1>
-        <p className="text-muted-foreground">
-          {family.location_city}, {family.location_country}
-        </p>
-      </div>
+    <div className="min-h-screen">
+      <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-2">
+              <Heart className="h-6 w-6 text-primary" />
+              <span className="font-serif text-xl font-semibold">{family.name}</span>
+            </div>
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Log Out
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="mb-6">
+          <p className="text-muted-foreground">
+            {family.location_city}, {family.location_country}
+          </p>
+        </div>
 
       <Tabs defaultValue="messages" className="space-y-6">
         <TabsList>
@@ -477,6 +499,7 @@ export default function FamilyDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
