@@ -72,8 +72,20 @@ export default function FamilyDashboard() {
             table: 'messages',
             filter: `thread_id=eq.${selectedThread}`
           },
-          (payload) => {
-            setMessages(prev => [...prev, payload.new as Message]);
+          async (payload) => {
+            // Fetch the complete message with profile data
+            const { data: newMessage } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                profiles (name)
+              `)
+              .eq('id', payload.new.id)
+              .single();
+
+            if (newMessage) {
+              setMessages(prev => [...prev, newMessage as Message]);
+            }
           }
         )
         .subscribe();
